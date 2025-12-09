@@ -38,6 +38,17 @@ async function insertPostToDatabase(post){
 
 }
 
+async function getPostById(postId){
+
+    const result = await database.query("SELECT * FROM blogpost WHERE id=$1", [postId]);
+
+    if(result.rows.length > 0)
+      return result.rows[0];
+
+    return null;
+
+}
+
 function isIncomingPostValid(post){
   const keys = Object.keys(post);
   const requiredKeys = Object.keys(dummyIncomingPost);
@@ -59,23 +70,54 @@ function isIncomingPostValid(post){
 }
 
 
+/*
+app.put('/post/:id', async(req, res)=>{
+  const id = req.params.id;
+
+  //check if id is a number or not
+  if(id.match(/^\d+$/)){
+    res.status(200).send("received post id " + id);
+  }else
+    res.status(400).send("post id is not a pure number");
+  
+});
+*/
+
+
+app.get('/post/:id', async(req, res)=>{
+  const id = req.params.id;
+
+  //check if id is a number or not
+  if(id.match(/^\d+$/)){   
+    try{
+      const post = await getPostById(id);
+      if(post)    
+        res.status(200).json(post);
+      else
+        res.status(404).send("cannot find post with id " + id);
+    }catch(err){
+      console.error("fail to access database", err);
+      res.status(500).send("something wrong on database");  
+    }
+
+  }else{
+    res.status(400).send("post id is not a pure number");
+  }
+
+});
+
 app.post("/posts", async (req, res)=>{
-  console.log("req.body");
-  console.log(req.body);
+  //console.log("req.body");
+  //console.log(req.body);
   
-  
-  //const commingPost = JSON.parse(req.body);
-  //console.log(commingPost);
   const incomingPost = req.body;
   const result = isIncomingPostValid(incomingPost);
   
-  //commingPost.id = 10;
-
   if(result.isValid){
     const today = new Date();
     incomingPost.createDate = today;
     incomingPost.updateDate = today;
-    
+
     try{
       const result = await insertPostToDatabase(incomingPost);
       res.status(200).json(result);
