@@ -7,7 +7,9 @@ import env from "dotenv";
 const app = express();
 const PORT = 4000;
 
+app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
 env.config();
 
 const database = new pg.Client(
@@ -22,7 +24,7 @@ const database = new pg.Client(
 
 database.connect();
 
-async function testDatabaseInsert(post){
+async function insertPostToDatabase(post){
 
     //console.log("inside testDatabaseInsert()");
     //console.log(post);
@@ -32,15 +34,59 @@ async function testDatabaseInsert(post){
       [post.title, post.content, post.category, post.tags, post.createDate, post.updateDate]
     );
 
-    if(result.rows.length > 0){
-      return result.rows[0];
-    }
-
-    console.log("cannot insert post");
-    return null;
+    return result.rows[0];
 
 }
 
+function isIncomingPostValid(post){
+  const keys = Object.keys(post);
+  const requiredKeys = Object.keys(dummyIncomingPost);
+
+  let missedFields = new Array();
+
+  for(let i = 0; i < requiredKeys.length; i++){
+    if(!keys.includes(requiredKeys[i])){
+      missedFields.push(requiredKeys[i]);
+    }
+  }
+
+  if(missedFields.length > 0){
+    const text = "Invalid post. Missing field " + missedFields.join(", ");
+    return {isValid: false, message: text};
+  }
+
+  return {isValid: true};
+}
+
+
+app.post("/posts", async (req, res)=>{
+  console.log("req.body");
+  console.log(req.body);
+  
+  
+  //const commingPost = JSON.parse(req.body);
+  //console.log(commingPost);
+  const incomingPost = req.body;
+  const result = isIncomingPostValid(incomingPost);
+  
+  //commingPost.id = 10;
+
+  if(result.isValid){
+    const today = new Date();
+    incomingPost.createDate = today;
+    incomingPost.updateDate = today;
+    
+    try{
+      const result = await insertPostToDatabase(incomingPost);
+      res.status(200).json(result);
+    }catch(err){
+      console.error("something wrong on database.", err);
+      res.status(500).send("something wrong happens on database.");
+    }
+  }else
+    res.status(400).json(result.message);
+
+});
 
 
 app.listen(PORT, () => {
@@ -50,28 +96,36 @@ app.listen(PORT, () => {
 
 
 const today = new Date();
-const newpost = [
-  { 
-    title: "test article",
-    content: "hi hi",
-    category: "Technology",
-    tags: ["Tech", "programming"],
-    createDate: today,
-    updateDate: today
-  },
-]
+const dummyPost = 
+{ 
+  title: "test article",
+  content: "hi hi",
+  category: "Technology",
+  tags: ["Tech", "programming"],
+  createDate: today,
+  updateDate: today
+};
 
-
-//console.log(newpost);
-//console.log(JSON.stringify(newpost[0]));
-try{
-  const result = await testDatabaseInsert(newpost[0]);
-
-  if(result){
-    console.log(result);
-  }else
-    console.log("cannot create post");
-
-}catch (err){
-  console.log("fail to access database", err);
+const dummyIncomingPost = 
+{
+  title: "test article",
+  content: "hi hi",
+  category: "Technology",
+  tags: ["Tech", "programming"]
 }
+
+
+//console.log(dummyPost);
+//console.log(JSON.stringify(dummyPost));
+// test insert post in the database
+// try{
+//   const result = await insertPostToDatabase(dummyPost);
+
+//   if(result){
+//     console.log(result);
+//   }else
+//     console.log("cannot create post");
+
+// }catch (err){
+//   console.log("fail to access database", err);
+// }
