@@ -128,7 +128,37 @@ async function updatePosttoDatabase(id, post, validKeys){
   return null;
 }
 
-app.put('/post/:id', async(req, res)=>{
+
+async function deletePostFromDatabase(id){
+  const result = await database.query("DELETE FROM blogpost WHERE id=$1 RETURNING id", [id]);
+  
+  return result.rows.length;
+}
+
+
+app.delete('/posts/:id', async(req, res)=>{
+  const id = req.params.id;
+
+  if(id.match(/^\d+$/)){
+    try{
+      const result = await deletePostFromDatabase(id);
+      if(result > 0)
+        return res.status(204).send('deleted post ${id}');
+      else
+        return res.status(404).send(`Post ${id} does not found`);
+    }catch(err){
+      console.error("something wrong on the database", err);
+      return res.status(500).send("something wrong on the database");
+    }
+  
+  }else{
+      return res.status(400).send("path '/posts/id' where id should be a number");
+  }
+
+});
+
+
+app.put('/posts/:id', async(req, res)=>{
   const id = req.params.id;
 
   //check if id is a number or not
@@ -147,7 +177,7 @@ app.put('/post/:id', async(req, res)=>{
           return res.status(404).send("Post does not exit.");
 
       }catch(err){
-          console.error("failt to access database", error);
+          console.error("something wrong on the database", err);
           return res.status(500).send("something wrong on database");
       }
 
@@ -162,7 +192,7 @@ app.put('/post/:id', async(req, res)=>{
 
 
 
-app.get('/post/:id', async(req, res)=>{
+app.get('/posts/:id', async(req, res)=>{
   const id = req.params.id;
 
   //check if id is a number or not
@@ -174,7 +204,7 @@ app.get('/post/:id', async(req, res)=>{
       else
         res.status(404).send("cannot find post with id " + id);
     }catch(err){
-      console.error("fail to access database", err);
+      console.error("something wrong on the database", err);
       res.status(500).send("something wrong on database");  
     }
 
@@ -200,7 +230,7 @@ app.post("/posts", async (req, res)=>{
       const result = await insertPostToDatabase(incomingPost);
       res.status(200).json(result);
     }catch(err){
-      console.error("something wrong on database.", err);
+      console.error("something wrong on the database", err);
       res.status(500).send("something wrong happens on database.");
     }
   }else
