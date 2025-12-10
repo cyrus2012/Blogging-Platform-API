@@ -6,6 +6,8 @@ import env from "dotenv";
 
 const app = express();
 const PORT = 4000;
+const TABLE="blogpost";
+
 
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -69,19 +71,95 @@ function isIncomingPostValid(post){
   return {isValid: true};
 }
 
+function accountPostFields(post){
+  const keys = Object.keys(post);
+  const postKeys = Object.keys(dummyIncomingPost);
 
-/*
+  let validKeys = new Array();
+
+  for(let i = 0; i < postKeys.length; i++){
+    if(keys.includes(postKeys[i])){
+      validKeys.push(postKeys[i]);
+    }
+  }
+
+  return validKeys;
+
+}
+
+/**
+ * It will return the content of the post after update, or null if post does not exist
+ * @param {number} id post id
+ * @param {object} post post object
+ * @param {string[]} validKeys contain the valid keys to update the post, should not be empty or null
+ */
+async function updatePosttoDatabase(id, post, validKeys){
+  
+  let setValue;
+  let fields = [];
+  
+  for(let i = 0; i < validKeys.length; i++){
+
+    if(i == 0){
+      setValue = `SET ${validKeys[i]} = $${i+1}`;
+    }else{
+      setValue += `, ${validKeys[i]} = $${i+1}`;
+    }
+
+    fields.push(post[validKeys[i]]);
+
+  }
+
+  setValue += `, updateDate=$${validKeys.length + 1}`;
+  fields.push(new Date());
+
+  // console.log(setValue);
+   //console.log(fields);
+   const query = "UPDATE blogpost " + setValue + " WHERE id=" + id + " RETURNING *";
+   //console.log(query);
+
+  const result = await database.query(query, fields);
+
+  //const result = await database.query("UPDATE blogpost SET title=$1 WHERE id=" + id + " RETURNING *", ["meme"]);
+
+  if(result.rows.length > 0)
+    return result.rows[0];
+
+  return null;
+}
+
 app.put('/post/:id', async(req, res)=>{
   const id = req.params.id;
 
   //check if id is a number or not
   if(id.match(/^\d+$/)){
-    res.status(200).send("received post id " + id);
+    //res.status(200).send("received post id " + id);
+    const post = req.body;
+    const validKeys = accountPostFields(post);
+    if(validKeys.length > 0){
+
+      try{
+          const result = await updatePosttoDatabase(id, post, validKeys);
+          //console.log(result);
+          if(result)
+            return res.status(200).send(result);
+
+          return res.status(404).send("Post does not exit.");
+
+      }catch(err){
+          console.error("failt to access database", error);
+          return res.status(500).send("something wrong on database");
+      }
+
+    }else{
+      return res.status(400).send("The post does not contain valid field to update.");  
+    }
+
   }else
-    res.status(400).send("post id is not a pure number");
-  
+    return res.status(400).send("post id is not a pure number");
 });
-*/
+
+
 
 
 app.get('/post/:id', async(req, res)=>{
