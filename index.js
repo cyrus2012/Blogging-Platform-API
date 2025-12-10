@@ -44,12 +44,31 @@ async function getPostById(postId){
 
     const result = await database.query("SELECT * FROM blogpost WHERE id=$1", [postId]);
 
+
     if(result.rows.length > 0)
       return result.rows[0];
 
     return null;
 
 }
+
+async function getAllPost(){
+
+    const result = await database.query("SELECT * FROM blogpost");
+
+    return result.rows;
+
+}
+
+async function searchPostByTerm(term){
+  //console.log(term);
+
+  const result = await database.query("SELECT * FROM blogpost WHERE title ILIKE $1 " +
+    "OR content ILIKE $1 OR category ILIKE $1" , ['%'+term+'%']);
+  
+  return result.rows;
+}
+
 
 function isIncomingPostValid(post){
   const keys = Object.keys(post);
@@ -190,7 +209,24 @@ app.put('/posts/:id', async(req, res)=>{
 });
 
 
+app.get('/posts', async(req, res)=>{
 
+  try{
+
+    let posts;
+    if(req.query.term){
+      posts = await searchPostByTerm(req.query.term);
+    }else{
+      posts = await getAllPost();
+    }
+
+    res.status(200).send(posts);
+
+  }catch(err){
+    console.error("something wrong on the database", err);
+    res.status(500).send("something wrong on database");  
+  }
+})
 
 app.get('/posts/:id', async(req, res)=>{
   const id = req.params.id;
