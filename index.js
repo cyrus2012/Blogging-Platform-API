@@ -28,9 +28,7 @@ database.connect();
 
 async function insertPostToDatabase(post){
 
-    //console.log("inside testDatabaseInsert()");
-    //console.log(post);
-    const result = await database.query("INSERT INTO blogpost " +
+    const result = await database.query("INSERT INTO "+ TABLE + " " +
       "(title, content, category, tags, createdate, updateDate) " +
       "VALUES ($1, $2, $3, $4, $5, $6) RETURNING *", 
       [post.title, post.content, post.category, post.tags, post.createDate, post.updateDate]
@@ -42,7 +40,7 @@ async function insertPostToDatabase(post){
 
 async function getPostById(postId){
 
-    const result = await database.query("SELECT * FROM blogpost WHERE id=$1", [postId]);
+    const result = await database.query("SELECT * FROM " + TABLE + " WHERE id=$1", [postId]);
 
 
     if(result.rows.length > 0)
@@ -54,16 +52,15 @@ async function getPostById(postId){
 
 async function getAllPost(){
 
-    const result = await database.query("SELECT * FROM blogpost");
+    const result = await database.query("SELECT * FROM " + TABLE);
 
     return result.rows;
 
 }
 
 async function searchPostByTerm(term){
-  //console.log(term);
-
-  const result = await database.query("SELECT * FROM blogpost WHERE title ILIKE $1 " +
+  
+  const result = await database.query("SELECT * FROM " + TABLE + " WHERE title ILIKE $1 " +
     "OR content ILIKE $1 OR category ILIKE $1" , ['%'+term+'%']);
   
   return result.rows;
@@ -132,14 +129,9 @@ async function updatePosttoDatabase(id, post, validKeys){
   setValue += `, updateDate=$${validKeys.length + 1}`;
   fields.push(new Date());
 
-  // console.log(setValue);
-   //console.log(fields);
-   const query = "UPDATE blogpost " + setValue + " WHERE id=" + id + " RETURNING *";
-   //console.log(query);
+  const query = "UPDATE " + TABLE + " " + setValue + " WHERE id=" + id + " RETURNING *";
 
   const result = await database.query(query, fields);
-
-  //const result = await database.query("UPDATE blogpost SET title=$1 WHERE id=" + id + " RETURNING *", ["meme"]);
 
   if(result.rows.length > 0)
     return result.rows[0];
@@ -149,7 +141,7 @@ async function updatePosttoDatabase(id, post, validKeys){
 
 
 async function deletePostFromDatabase(id){
-  const result = await database.query("DELETE FROM blogpost WHERE id=$1 RETURNING id", [id]);
+  const result = await database.query("DELETE FROM " + TABLE + " WHERE id=$1 RETURNING id", [id]);
   
   return result.rows.length;
 }
